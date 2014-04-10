@@ -1,0 +1,20 @@
+{
+    "name": "werkzeugh/ehp",
+    "description": "",
+    "authors": [
+        {
+          "name": "Manfred Wuits",
+          "email": "mw@werkzeugh.at"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.0",
+        "illuminate/support": "4.1.*"
+    },
+    "autoload": {
+        "psr-0": {
+            "Werkzeugh\\Ehp": "src/"
+        }
+    },
+    "minimum-stability": "stable"
+}
