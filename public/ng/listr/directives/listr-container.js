@@ -3,23 +3,27 @@ angular.module("listr").directive("listrContainer", function() {
   return {
     restrict: "EA",
     replace: true,
-    template: '<div></div>',
+    transclude: true,
     scope: {
       src: '@',
       prefix: '@'
     },
-    link: function(scope, element, attrs) {
-      if (window.console && console.log) {
-        return console.log("listr container init", null);
-      }
+    link: function(scope, element, attrs, ctrl, transclude) {
+      return transclude(scope, function(clone, scope) {
+        return element.append(clone);
+      });
     },
     controller: [
       "$scope", "$element", "$attrs", "$timeout", "$filter", "$http", "$q", "statemanager", function($scope, $element, $attrs, $timeout, $filter, $http, $q, statemanager) {
         var listrApiUrl;
 
         $scope.query = {};
-        $scope.items = {};
-        listrApiUrl = $scope.src + '/listr';
+        $scope.items = [
+          {
+            aaa: 'test'
+          }
+        ];
+        listrApiUrl = $scope.src;
         if (!$scope.prefix) {
           $scope.prefix = 'listr';
         }
@@ -34,19 +38,15 @@ angular.module("listr").directive("listrContainer", function() {
             page = 1;
           }
           return $http.post(listrApiUrl, {
-            action: 'get_items',
+            action: 'getItems',
             prefix: $scope.prefix,
             query: $scope.query,
             page: page
-          }, function(response) {
-            $scope.items = response.items.data;
-            $scope.allItems = response.items;
-            return $scope.listmode = 'loaded';
-          }, function(error) {
+          }).then(function(response) {
             if (window.console && console.log) {
-              console.log("error:", error);
+              console.log("rr", response);
             }
-            return $scope.items = [];
+            return $scope.items = response.data.items;
           });
         };
         $scope.$watch((function() {

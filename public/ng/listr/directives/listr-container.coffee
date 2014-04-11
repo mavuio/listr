@@ -2,19 +2,20 @@
 angular.module("listr").directive "listrContainer", ->
   restrict: "EA"
   replace: true
-  template: '<div></div>'
+  transclude: true
   scope:
     src: '@'
     prefix: '@'
 
-  link: (scope, element, attrs) ->
-    console.log "listr container init" , null  if window.console and console.log
+  link: (scope, element, attrs, ctrl, transclude) ->
+    transclude scope, (clone, scope) ->
+      element.append(clone)
 
   controller: ["$scope", "$element", "$attrs", "$timeout", "$filter", "$http", "$q","statemanager", ($scope, $element, $attrs, $timeout, $filter, $http, $q, statemanager) ->
 
     $scope.query = {}
-    $scope.items = {}
-    listrApiUrl=$scope.src+'/listr'
+    $scope.items = [{aaa:'test'}]
+    listrApiUrl=$scope.src
 
     $scope.prefix='listr' unless $scope.prefix
 
@@ -25,19 +26,15 @@ angular.module("listr").directive "listrContainer", ->
       page=$scope.query.page
       page=1 if page < 0
 
-      $http.post listrApiUrl,
-          action : 'get_items'
+      $http.post(listrApiUrl ,
+          action : 'getItems'
           prefix : $scope.prefix
           query  : $scope.query
           page   : page
-        , (response) ->
-          $scope.items = response.items.data
-          $scope.allItems = response.items
-          $scope.listmode = 'loaded'
-        , (error) ->
-          console.log "error:" , error  if window.console and console.log
-          $scope.items = []
-
+      ).then (response) ->
+          console.log "rr" , response  if window.console and console.log
+          $scope.items = response.data.items
+          # $scope.listmode = 'loaded'
 
     # watch state-changes, state changes on reload, back, url-modification
     $scope.$watch (->
