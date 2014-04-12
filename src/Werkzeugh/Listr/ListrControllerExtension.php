@@ -77,6 +77,8 @@ HTML;
       }
 
       $html='
+<div paginate="itemsPagination" paginate-reload="switchPage(page)"></div>
+
 <table class="listr-table table table-striped table-bordered table-condensed">
   <tbody>
     <tr>'.$thHtml.'
@@ -195,7 +197,10 @@ HTML;
 
     public function actionGetItems()
     {
+
+      \Paginator::setCurrentPage(Input::get('page'));
       $ret['items']=$this->getItemList();
+
       $ret['status']='ok';
       return Response::json($ret);
     }
@@ -226,17 +231,28 @@ HTML;
 
     public function executeQuery($query)
     {
-      return $query->get()->take(2);
+      return $query->paginate(10);
     }
 
     public function getItemsForQuery($query)
     {
       $items=[];
-      foreach ($this->executeQuery($query) as $item) {
-
+      $paginatedItems=$this->executeQuery($query);
+      // if($_GET[d] || 1 ) { $x=$paginatedItems; $x=htmlspecialchars(print_r($x,1));echo "\n<li>mwuits: <pre>$x</pre>"; }
+      foreach ( $paginatedItems as $item) {
         array_push($items,$this->getListRecord($item));
       }
-      return $items;
+
+      return ['data'=>$items,
+      'pagination'=>[
+      'current_page'=>$paginatedItems->getCurrentPage(),
+      'from'=>$paginatedItems->getFrom(),
+      'to'=>$paginatedItems->getTo(),
+      'last_page'=>$paginatedItems->getLastPage(),
+      'per_page'=>$paginatedItems->getPerPage(),
+      'total'=>$paginatedItems->getTotal(),
+      ]
+      ];
     }
 
     public function getListRecord($item)
@@ -251,10 +267,15 @@ HTML;
       }
 
       foreach ($this->getDisplayColumns() as $columnName) {
+
             if (!isset($record[$columnName])) {
               $record[$columnName]=$item->getAttribute($columnName);
+              // echo $item->email;
+              // if($_GET[d] || 1 ) { $x=$item; $x=htmlspecialchars(print_r($x,1));echo "\n<li>mwuits: <pre>$x</pre>"; }
+             // echo "<li>$columnName = ".$record[$columnName];
             }
       }
+      // die();
 
       return $record;
 

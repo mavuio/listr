@@ -23,15 +23,23 @@ angular.module("listr").directive("listrContainer", function() {
             aaa: 'test'
           }
         ];
+        $scope.itemsPagination = {};
         listrApiUrl = $scope.src;
         if (!$scope.prefix) {
           $scope.prefix = 'listr';
         }
+        $scope.switchPage = function(page) {
+          $scope.query.page = page;
+          return $scope.refreshListing();
+        };
         $scope.refreshListing = function() {
           var page;
 
+          if (!$scope.prefix) {
+            $scope.prefix = 'listr';
+          }
           if (window.console && console.log) {
-            console.log("➜  refreshListing");
+            console.log("➜  refreshListing", $scope.prefix);
           }
           page = $scope.query.page;
           if (page < 0) {
@@ -46,7 +54,8 @@ angular.module("listr").directive("listrContainer", function() {
             if (window.console && console.log) {
               console.log("rr", response);
             }
-            return $scope.items = response.data.items;
+            $scope.items = response.data.items.data;
+            return $scope.itemsPagination = response.data.items.pagination;
           });
         };
         $scope.$watch((function() {
@@ -59,6 +68,171 @@ angular.module("listr").directive("listrContainer", function() {
         return $scope.refreshListing();
       }
     ]
+  };
+});
+
+angular.module("listr").directive("paginate", function() {
+  return {
+    scope: {
+      allItems: "=paginate",
+      reloadItems: "&paginateReload"
+    },
+    template: "<div class=\"pagination-wrapper\"><ul class=\"pagination\" ng-show=\"totalPages > 1\">" + "  <li><a ng-click=\"prevPage()\">&lsaquo;</a></li>" + "  <li ng-repeat=\"page in pages\" ng-class=\"{'active':(page.nr==current_page)}\" >" + "<a ng-bind=\"page.nr\" ng-click=\"setPage(page.nr)\">1</a>" + "  </li>" + "  <li><a ng-click=\"nextPage()\">&rsaquo;</a></li>" + "</ul></div>",
+    link: function(scope) {
+      var addAfter, addBefore, pageChange, paginate;
+
+      scope.nextPage = function() {
+        if (scope.current_page < scope.totalPages) {
+          scope.current_page++;
+        }
+      };
+      scope.prevPage = function() {
+        if (scope.current_page > 1) {
+          scope.current_page--;
+        }
+      };
+      scope.firstPage = function() {
+        scope.current_page = 1;
+      };
+      scope.last_page = function() {
+        scope.current_page = scope.totalPages;
+      };
+      scope.setPage = function(page) {
+        scope.current_page = page;
+      };
+      addBefore = function() {
+        var minPage, newval;
+
+        if (window.console && console.log) {
+          console.log("bef", null);
+        }
+        if (scope.pagingBox.before.length > 1 && scope.pagingBox.before[1] === '..') {
+          if (scope.pagingBox.before.length > 2) {
+            minPage = scope.pagingBox.before[2];
+          } else {
+            minPage = scope.pagingBox.current;
+          }
+        } else {
+          minPage = 1;
+          scope.pagingBox.beforeIsFull = true;
+        }
+        if (minPage > 2) {
+          newval = minPage - 1;
+          scope.pagingBox.before.splice(2, 0, newval);
+          if (window.console && console.log) {
+            console.log("added #" + newval + " before", null);
+          }
+        }
+        if (scope.pagingBox.before[1] === '..' && (scope.pagingBox.before[2] === 2 || scope.pagingBox.current === 2)) {
+          scope.pagingBox.before.splice(1, 1);
+          if (window.console && console.log) {
+            return console.log("remove .. before", null);
+          }
+        }
+      };
+      addAfter = function() {
+        var maxPage, newval;
+
+        if (window.console && console.log) {
+          console.log("aft", null);
+        }
+        if (scope.pagingBox.after.length > 1 && scope.pagingBox.after[scope.pagingBox.after.length - 2] === '..') {
+          if (scope.pagingBox.after.length > 2) {
+            maxPage = scope.pagingBox.after[scope.pagingBox.after.length - 3];
+          } else {
+            maxPage = scope.pagingBox.current;
+          }
+        } else {
+          maxPage = scope.totalPages;
+          scope.pagingBox.afterIsFull = true;
+        }
+        if (maxPage < scope.totalPages - 1) {
+          newval = maxPage + 1;
+          scope.pagingBox.after.splice(scope.pagingBox.after.length - 2, 0, newval);
+          if (window.console && console.log) {
+            console.log("added #" + newval + " after", null);
+          }
+        }
+        if (scope.pagingBox.after[scope.pagingBox.after.length - 2] === '..' && (scope.pagingBox.after[scope.pagingBox.after.length - 3] === scope.totalPages - 1 || scope.pagingBox.current === scope.totalPages - 1)) {
+          if (window.console && console.log) {
+            console.log("remove ..", null);
+          }
+          return scope.pagingBox.after.splice(scope.pagingBox.after.length - 2, 1);
+        }
+      };
+      paginate = function(results, oldResults) {
+        var concattedPageArray, safeCounter;
+
+        if (oldResults === results) {
+          return;
+        }
+        scope.current_page = results.current_page;
+        scope.total = results.total;
+        scope.totalPages = results.last_page;
+        scope.pages = [];
+        scope.pagingBox = {
+          before: [1, ".."],
+          current: results.current_page,
+          after: ["..", scope.totalPages],
+          limit: 12
+        };
+        if (scope.pagingBox.current === 1) {
+          scope.pagingBox.before = [];
+        }
+        if (scope.pagingBox.current === scope.totalPages) {
+          scope.pagingBox.after = [];
+        }
+        safeCounter = 0;
+        while (scope.pagingBox.before.length + 1 + scope.pagingBox.after.length < scope.pagingBox.limit) {
+          safeCounter++;
+          if (window.console && console.log) {
+            console.log(safeCounter + ": " + (scope.pagingBox.before.length + 1 + scope.pagingBox.after.length), null);
+          }
+          if (safeCounter % 2) {
+            addBefore();
+          } else {
+            addAfter();
+          }
+          if (safeCounter > scope.pagingBox.limit * 2) {
+            break;
+          }
+        }
+        if (scope.pagingBox.before[1] === '..' && (scope.pagingBox.before[2] === 3)) {
+          scope.pagingBox.before.splice(1, 1, 2);
+          if (window.console && console.log) {
+            console.log("remove .., added 2 before", null);
+          }
+        }
+        if (scope.pagingBox.after[scope.pagingBox.after.length - 2] === '..' && (scope.pagingBox.after[scope.pagingBox.after.length - 3] === scope.totalPages - 2)) {
+          scope.pagingBox.after.splice(scope.pagingBox.after.length - 2, 1, scope.totalPages - 1);
+          if (window.console && console.log) {
+            console.log("remove .., added totalpage -1 before", null);
+          }
+        }
+        concattedPageArray = scope.pagingBox.before.concat(scope.pagingBox.current, scope.pagingBox.after);
+        angular.forEach(concattedPageArray, function(value, key) {
+          if (window.console && console.log) {
+            console.log("concatme", null);
+          }
+          return scope.pages.push({
+            nr: value
+          });
+        });
+      };
+      pageChange = function(newPage, last_page) {
+        if (last_page == null) {
+          return;
+        }
+        if (window.console && console.log) {
+          console.log("pageChange", newPage, last_page);
+        }
+        return scope.reloadItems({
+          page: newPage
+        });
+      };
+      scope.$watch("allItems", paginate);
+      return scope.$watch("current_page", pageChange);
+    }
   };
 });
 
