@@ -6,7 +6,8 @@ angular.module("listr").directive("listrContainer", function() {
     transclude: true,
     scope: {
       src: '@',
-      prefix: '@'
+      prefix: '@',
+      query: '='
     },
     link: function(scope, element, attrs, ctrl, transclude) {
       return transclude(scope, function(clone, scope) {
@@ -17,24 +18,52 @@ angular.module("listr").directive("listrContainer", function() {
       "$scope", "$element", "$attrs", "$timeout", "$filter", "$http", "$q", "statemanager", function($scope, $element, $attrs, $timeout, $filter, $http, $q, statemanager) {
         var listrApiUrl;
 
-        $scope.query = {};
-        $scope.items = [
-          {
-            aaa: 'test'
-          }
-        ];
+        if (!$scope.query) {
+          $scope.query = {};
+        }
+        $scope.items = [];
+        $scope.listStatus = 'empty';
         $scope.itemsPagination = {};
         listrApiUrl = $scope.src;
         if (!$scope.prefix) {
           $scope.prefix = 'listr';
         }
         $scope.switchPage = function(page) {
-          $scope.query.page = page;
-          return $scope.refreshListing();
+          return $scope.listrSubmitQuery(page);
+        };
+        $scope.listrSubmitQuery = function(page) {
+          var newstate;
+
+          if (page == null) {
+            page = 0;
+          }
+          if ($scope.listStatus === 'loading') {
+            if (window.console && console.log) {
+              console.log("list is already loading, please wait", null);
+            }
+            return;
+          }
+          if (window.console && console.log) {
+            console.log("❖ listrSubmitQuery", page);
+          }
+          if (page > 0) {
+            $scope.query.page = page;
+          }
+          newstate = {
+            query: $scope.query
+          };
+          return statemanager.setState(newstate);
         };
         $scope.refreshListing = function() {
           var page;
 
+          if ($scope.listStatus === 'loading') {
+            if (window.console && console.log) {
+              console.log("list is already loading, please wait", null);
+            }
+            return;
+          }
+          $scope.listStatus = 'loading';
           if (!$scope.prefix) {
             $scope.prefix = 'listr';
           }
@@ -51,21 +80,24 @@ angular.module("listr").directive("listrContainer", function() {
             query: $scope.query,
             page: page
           }).then(function(response) {
-            if (window.console && console.log) {
-              console.log("rr", response);
-            }
             $scope.items = response.data.items.data;
-            return $scope.itemsPagination = response.data.items.pagination;
+            $scope.itemsPagination = response.data.items.pagination;
+            if ($scope.items.length === 0) {
+              return $scope.listStatus = 'empty';
+            } else {
+              return $scope.listStatus = 'loaded';
+            }
           });
         };
-        $scope.$watch((function() {
+        return $scope.$watch((function() {
           return statemanager.get("query");
         }), (function(query) {
           if (window.console && console.log) {
-            return console.log("listr-container: state-change detected", null);
+            console.log("❖ listr-container: state-change detected", null);
           }
+          $scope.query = angular.copy(query);
+          return $scope.refreshListing();
         }), true);
-        return $scope.refreshListing();
       }
     ]
   };
@@ -103,9 +135,6 @@ angular.module("listr").directive("paginate", function() {
       addBefore = function() {
         var minPage, newval;
 
-        if (window.console && console.log) {
-          console.log("bef", null);
-        }
         if (scope.pagingBox.before.length > 1 && scope.pagingBox.before[1] === '..') {
           if (scope.pagingBox.before.length > 2) {
             minPage = scope.pagingBox.before[2];
@@ -119,15 +148,9 @@ angular.module("listr").directive("paginate", function() {
         if (minPage > 2) {
           newval = minPage - 1;
           scope.pagingBox.before.splice(2, 0, newval);
-          if (window.console && console.log) {
-            console.log("added #" + newval + " before", null);
-          }
         }
         if (scope.pagingBox.before[1] === '..' && (scope.pagingBox.before[2] === 2 || scope.pagingBox.current === 2)) {
-          scope.pagingBox.before.splice(1, 1);
-          if (window.console && console.log) {
-            return console.log("remove .. before", null);
-          }
+          return scope.pagingBox.before.splice(1, 1);
         }
       };
       addAfter = function() {
@@ -149,14 +172,8 @@ angular.module("listr").directive("paginate", function() {
         if (maxPage < scope.totalPages - 1) {
           newval = maxPage + 1;
           scope.pagingBox.after.splice(scope.pagingBox.after.length - 2, 0, newval);
-          if (window.console && console.log) {
-            console.log("added #" + newval + " after", null);
-          }
         }
         if (scope.pagingBox.after[scope.pagingBox.after.length - 2] === '..' && (scope.pagingBox.after[scope.pagingBox.after.length - 3] === scope.totalPages - 1 || scope.pagingBox.current === scope.totalPages - 1)) {
-          if (window.console && console.log) {
-            console.log("remove ..", null);
-          }
           return scope.pagingBox.after.splice(scope.pagingBox.after.length - 2, 1);
         }
       };
@@ -185,9 +202,6 @@ angular.module("listr").directive("paginate", function() {
         safeCounter = 0;
         while (scope.pagingBox.before.length + 1 + scope.pagingBox.after.length < scope.pagingBox.limit) {
           safeCounter++;
-          if (window.console && console.log) {
-            console.log(safeCounter + ": " + (scope.pagingBox.before.length + 1 + scope.pagingBox.after.length), null);
-          }
           if (safeCounter % 2) {
             addBefore();
           } else {
@@ -199,21 +213,12 @@ angular.module("listr").directive("paginate", function() {
         }
         if (scope.pagingBox.before[1] === '..' && (scope.pagingBox.before[2] === 3)) {
           scope.pagingBox.before.splice(1, 1, 2);
-          if (window.console && console.log) {
-            console.log("remove .., added 2 before", null);
-          }
         }
         if (scope.pagingBox.after[scope.pagingBox.after.length - 2] === '..' && (scope.pagingBox.after[scope.pagingBox.after.length - 3] === scope.totalPages - 2)) {
           scope.pagingBox.after.splice(scope.pagingBox.after.length - 2, 1, scope.totalPages - 1);
-          if (window.console && console.log) {
-            console.log("remove .., added totalpage -1 before", null);
-          }
         }
         concattedPageArray = scope.pagingBox.before.concat(scope.pagingBox.current, scope.pagingBox.after);
         angular.forEach(concattedPageArray, function(value, key) {
-          if (window.console && console.log) {
-            console.log("concatme", null);
-          }
           return scope.pages.push({
             nr: value
           });
@@ -222,9 +227,6 @@ angular.module("listr").directive("paginate", function() {
       pageChange = function(newPage, last_page) {
         if (last_page == null) {
           return;
-        }
-        if (window.console && console.log) {
-          console.log("pageChange", newPage, last_page);
         }
         return scope.reloadItems({
           page: newPage

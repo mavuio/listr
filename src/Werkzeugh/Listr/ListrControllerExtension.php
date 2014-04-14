@@ -11,8 +11,9 @@ class ListrControllerExtension
 
 
     // register parent controller, gets loaded soon after initializing, from the parent controller
-    public function registerController($controller)
+    public function registerController($controller, $prefix='listr')
     {
+        $this->prefix=$prefix;
         $this->parentController=$controller;
         $this->setupAssets();
     }
@@ -41,26 +42,43 @@ class ListrControllerExtension
       return \URL::current().'/listr';
     }
 
-    public function getHtml($prefix='listr')
+    public function topHtml()
     {
-
-      $this->prefix=$prefix;
       $url=$this->getApiUrl();
-
       return <<<HTML
 <div class='well' id="werkzeugh-listr" ng-controller="ListrController" >
+  <div listr-container src="$url" query="query">
+HTML;
+    }
 
-<div listr-container src="$url">
+    public function middleHtml()
+    {
+      return $this->getTableHtml();
+    }
 
-  {$this->getTableHtml()}
-
-
-</div>
-
+    public function bottomHtml()
+    {
+      return <<<HTML
+  </div>
 </div>
 <script>
  angular.bootstrap(document.getElementById('werkzeugh-listr'), ['listr']);
 </script>
+HTML;
+    }
+
+    public function html()
+    {
+
+      return $this->topHtml()
+      .$this->middleHtml()
+      .$this->bottomHtml();
+
+
+      return <<<HTML
+
+
+
 HTML;
 
     }
@@ -76,8 +94,10 @@ HTML;
         $thHtml.="\n      <th>$columnHtml</th>";
       }
 
+      $columnCount=substr_count($thHtml , '<th' );
+
       $html='
-<div paginate="itemsPagination" paginate-reload="switchPage(page)"></div>
+<div paginate="itemsPagination" class="listr-pagination" paginate-reload="switchPage(page)"></div>
 
 <table class="listr-table table table-striped table-bordered table-condensed">
   <tbody>
@@ -85,13 +105,26 @@ HTML;
     </tr>
   </tbody>
   <tbody>
-    <tr listr-item ng-repeat="rec in items">'.$tdHtml.'
+
+    <tr ng-if="listStatus==\'loading\'"><td colspan='.$columnCount.' align="center">
+    <i class="fa fa-refresh fa-spin"></i>
+    </td>
     </tr>
+
+    <tr ng-if="listStatus==\'empty\'"><td colspan='.$columnCount.' align="center">
+      no items found
+    </td>
+    </tr>
+
+    <tr listr-item ng-repeat="rec in items" ng-if="listStatus==\'loaded\'">'.$tdHtml.'
+    </tr>
+
   </tbody>
 </table>';
 
       return $html;
     }
+
 
     public function getDisplayColumns()
     {
@@ -134,6 +167,36 @@ HTML;
 
     }
 
+    public function getColumnType($columnName)
+    {
+
+      $type=$this->getDisplayColumnSetting($columnName,'type');
+      if (!$type)
+      {
+        $type=$this->guessTypeForColumnName($columnName);
+      }
+
+      return $type;
+    }
+
+    public function guessTypeForColumnName($columnName)
+    {
+      if(preg_match('#^.*_at$#',$columnName))
+      {
+        return "datetime";
+      }
+
+      if(preg_match('#date$#',$columnName))
+      {
+        return "date";
+      }
+
+      if(preg_match('#price$#',$columnName))
+      {
+        return "money";
+      }
+
+    }
 
     public function getCustomTemplateForColumn($columnName)
     {
@@ -142,6 +205,21 @@ HTML;
         if ($html=$conf['columnTemplates'][$columnName]) {
           return $html;
         }
+      }
+      if ($type=$this->getColumnType($columnName)) {
+        switch ($type) {
+          case 'date':
+            return "{{rec.{$columnName} | date:'yyyy-MM-dd' }}";
+            break;
+          case 'datetime':
+            return "{{rec.{$columnName} | date:'yyyy-MM-dd HH:mm' }}";
+            break;
+
+          default:
+            # code...
+            break;
+        }
+
       }
       return null;
 
@@ -186,7 +264,6 @@ HTML;
     {
 
       $action=Input::get('action');
-      $this->prefix=Input::get('prefix');
       if ($action) {
         $methodName='action'.ucfirst($action);
         return $this->$methodName();
@@ -199,7 +276,7 @@ HTML;
     {
 
       \Paginator::setCurrentPage(Input::get('page'));
-      $ret['items']=$this->getItemList();
+      $ret['items']=$this->getItemList(Input::get('query'));
 
       $ret['status']='ok';
       return Response::json($ret);
@@ -218,26 +295,136 @@ HTML;
 
       return $config;
     }
-}
+  }
+/*==========  data handlers  ==========*/
 
-    public function getItemList()
+    public function getItemList($filtersViaRequest)
     {
       if ($this->parentControllerHasMethod('query')){
         $query=$this->callMethodOnParentController('query');
 
-        return $this->getItemsForQuery($query);
+        return $this->getItemsForQuery($query, $filtersViaRequest);
       }
     }
 
-    public function executeQuery($query)
+    public function getPageSize()
     {
-      return $query->paginate(10);
+      $conf=$this->getConfig();
+
+      if ($conf['pagesize']>0) {
+        return $conf['pagesize'];
+      }
+
+      return 10;
     }
 
-    public function getItemsForQuery($query)
+    public function getDefaultSortString()
+    {
+      $conf=$this->getConfig();
+
+      if (is_array($conf['orderBy'])) {
+        foreach ($conf['orderBy'] as $sortTerm) {
+          $searchStringParts[]=$sortTerm[0]."-".$sortTerm[1];
+        }
+        return implode(',',$searchStringParts);
+      }
+      if ($conf['orderBy']) {
+        return $conf['orderBy'];
+      }
+
+      return '';
+    }
+
+
+    public function applySorts($query, $filtersViaRequest)
+    {
+
+      $sortString=trim($filtersViaRequest['sortby']);
+
+      if (!$sortString) {
+        $sortString=$this->getDefaultSortString();
+      }
+
+
+      foreach (explode(',', $sortString) as $fieldName) {
+
+        $direction='asc';
+        if (preg_match('#^(.+)-(desc|asc)$#', $fieldName, $matches)) {
+          $fieldName=$matches[1];
+          $direction=$matches[2];
+        }
+        $fieldName=trim($fieldName);
+        if ($fieldName && $direction) {
+          $query->orderBy($fieldName, $direction);
+        }
+      }
+
+
+    }
+
+
+    public function applyFilters($query, $filtersViaRequest)
+    {
+
+      foreach ($filtersViaRequest as $field=>$value) {
+
+        $this->applySingleFilter($field,$value,$query);
+      }
+
+    }
+
+    public function applySingleFilter($field, $value, $query)
+    {
+
+        if($field=='page')
+          return;
+
+        if ($field=='sortby')
+          return;
+
+        $sconf=$this->getConfigForSearchField($field);
+
+        if ($sconf['fields']) {
+
+          $query->where(function($query) use ($sconf, $value)
+          {
+            foreach ($sconf['fields'] as $fieldName) {
+              $query->orWhere($fieldName,'like','%'.$value.'%');
+            }
+          });
+
+        }
+        elseif (substr($field,0,1)!='_') {
+          #try to match plain fieldname
+          if (trim($value)) {
+            $query->where($field,'like','%'.$value.'%');
+          }
+        }
+    }
+
+    public function getConfigForSearchField($fieldName)
+    {
+      $conf=$this->getConfig();
+      if ($conf['searchFields'] && $conf['searchFields'][$fieldName] ) {
+        return $conf['searchFields'][$fieldName] ;
+      }
+
+      return [];
+    }
+
+    public function executeQuery($query, $filtersViaRequest)
+    {
+      $this->applyFilters($query, $filtersViaRequest);
+      $this->applySorts($query, $filtersViaRequest);
+      // $GLOBALS['debugsql']=1;
+
+      return $query->paginate($this->getPageSize());
+    }
+
+    public function getItemsForQuery($query, $filtersViaRequest)
     {
       $items=[];
-      $paginatedItems=$this->executeQuery($query);
+      $paginatedItems=$this->executeQuery($query, $filtersViaRequest);
       // if($_GET[d] || 1 ) { $x=$paginatedItems; $x=htmlspecialchars(print_r($x,1));echo "\n<li>mwuits: <pre>$x</pre>"; }
       foreach ( $paginatedItems as $item) {
         array_push($items,$this->getListRecord($item));
@@ -270,16 +457,23 @@ HTML;
 
             if (!isset($record[$columnName])) {
               $record[$columnName]=$item->getAttribute($columnName);
+
+              if (is_object($record[$columnName]) && is_a($record[$columnName], '\Carbon\Carbon')) {
+                $record[$columnName]=$record[$columnName]->toISO8601String();
+              }
               // echo $item->email;
               // if($_GET[d] || 1 ) { $x=$item; $x=htmlspecialchars(print_r($x,1));echo "\n<li>mwuits: <pre>$x</pre>"; }
              // echo "<li>$columnName = ".$record[$columnName];
             }
       }
+      // if($_GET[d] || 1 ) { $x=$record; $x=htmlspecialchars(print_r($x,1));echo "\n<li>mwuits: <pre>$x</pre>"; }
       // die();
-
       return $record;
 
+
     }
+
+/*==========  data handlers  end ==========*/
 
 
 

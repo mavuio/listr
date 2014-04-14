@@ -2,3 +2,15 @@
     border:1px solid #990000;
     margin:20px;
 }
+
+.listr-pagination li {
+  cursor:pointer;
+ -khtml-user-select: none;
+ -moz-user-select: none;
+ -ms-user-select: none;
+  user-select: none;
+ -webkit-touch-callout: none;
+ -webkit-user-select: none;
+ 
+ }
+ 

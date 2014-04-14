@@ -6,6 +6,7 @@ angular.module("listr").directive "listrContainer", ->
   scope:
     src: '@'
     prefix: '@'
+    query: '='
 
   link: (scope, element, attrs, ctrl, transclude) ->
     transclude scope, (clone, scope) ->
@@ -13,19 +14,38 @@ angular.module("listr").directive "listrContainer", ->
 
   controller: ["$scope", "$element", "$attrs", "$timeout", "$filter", "$http", "$q","statemanager", ($scope, $element, $attrs, $timeout, $filter, $http, $q, statemanager) ->
 
-    $scope.query = {}
-    $scope.items = [{aaa:'test'}]
+    if !$scope.query
+      $scope.query = {}
+
+    $scope.items = []
+    $scope.listStatus='empty'
     $scope.itemsPagination = {}
     listrApiUrl=$scope.src
 
     $scope.prefix='listr' unless $scope.prefix
 
     $scope.switchPage = (page) ->
-      $scope.query.page=page
-      $scope.refreshListing()
+      $scope.listrSubmitQuery(page)
 
+    $scope.listrSubmitQuery = (page=0) ->
+      if $scope.listStatus is 'loading'
+        console.log "list is already loading, please wait" , null  if window.console and console.log
+        return
+
+      console.log "❖ listrSubmitQuery" , page  if window.console and console.log
+
+      if page > 0
+        $scope.query.page=page
+
+      newstate=query: $scope.query
+      # newstate.hash={} if $scope.app.currentExpandedItem
+      statemanager.setState newstate
 
     $scope.refreshListing = () ->
+      if $scope.listStatus is 'loading'
+        console.log "list is already loading, please wait" , null  if window.console and console.log
+        return
+      $scope.listStatus='loading'
       $scope.prefix='listr' unless $scope.prefix
 
       console.log "➜  refreshListing" ,$scope.prefix  if window.console and console.log
@@ -39,20 +59,24 @@ angular.module("listr").directive "listrContainer", ->
           query  : $scope.query
           page   : page
       ).then (response) ->
-          console.log "rr" , response  if window.console and console.log
           $scope.items = response.data.items.data
           $scope.itemsPagination = response.data.items.pagination
-          # $scope.listmode = 'loaded'
+          if $scope.items.length is 0
+            $scope.listStatus = 'empty'
+          else
+            $scope.listStatus = 'loaded'
 
     # watch state-changes, state changes on reload, back, url-modification
     $scope.$watch (->
       statemanager.get "query"
     ), ((query) ->
-      console.log "listr-container: state-change detected" , null  if window.console and console.log
-      # $scope.refreshListing()
+      console.log "❖ listr-container: state-change detected" , null  if window.console and console.log
+      $scope.query = angular.copy(query)
+      $scope.refreshListing()
     ), true
 
-    $scope.refreshListing()
+
+    # $scope.refreshListing()
 
 
   ]
@@ -86,7 +110,6 @@ angular.module("listr").directive "paginate", ->
           return
 
         addBefore = ->
-          console.log "bef" , null  if window.console and console.log
 
           if scope.pagingBox.before.length>1 and scope.pagingBox.before[1] is '..'
             # '..' is present:
@@ -101,11 +124,11 @@ angular.module("listr").directive "paginate", ->
           if minPage > 2
             newval=minPage-1
             scope.pagingBox.before.splice(2, 0, newval)
-            console.log "added #"+newval+" before" , null  if window.console and console.log
+            # console.log "added #"+newval+" before" , null  if window.console and console.log
 
           if (scope.pagingBox.before[1] is '..' and (scope.pagingBox.before[2] is 2 or scope.pagingBox.current is 2))
             scope.pagingBox.before.splice(1, 1) #remove '..' if not needed anymore
-            console.log "remove .. before" , null  if window.console and console.log
+            # console.log "remove .. before" , null  if window.console and console.log
 
 
 
@@ -125,10 +148,10 @@ angular.module("listr").directive "paginate", ->
           if maxPage < scope.totalPages - 1
             newval=maxPage+1
             scope.pagingBox.after.splice(scope.pagingBox.after.length-2, 0, newval)
-            console.log "added #"+newval+" after" , null  if window.console and console.log
+            # console.log "added #"+newval+" after" , null  if window.console and console.log
 
           if scope.pagingBox.after[scope.pagingBox.after.length-2] is '..' and (scope.pagingBox.after[scope.pagingBox.after.length-3] is scope.totalPages - 1 or scope.pagingBox.current is scope.totalPages - 1)
-            console.log "remove .." , null  if window.console and console.log
+            # console.log "remove .." , null  if window.console and console.log
             scope.pagingBox.after.splice(scope.pagingBox.after.length-2, 1) #remove '..' if not needed anymore
 
 
@@ -158,7 +181,7 @@ angular.module("listr").directive "paginate", ->
 
           while scope.pagingBox.before.length+1+scope.pagingBox.after.length < scope.pagingBox.limit
             safeCounter++
-            console.log safeCounter+": "+(scope.pagingBox.before.length+1+scope.pagingBox.after.length) , null  if window.console and console.log
+            # console.log safeCounter+": "+(scope.pagingBox.before.length+1+scope.pagingBox.after.length) , null  if window.console and console.log
             if safeCounter % 2
               addBefore()
             else
@@ -169,27 +192,25 @@ angular.module("listr").directive "paginate", ->
           # fix 1 .. 3 4 5
           if scope.pagingBox.before[1] is '..' and (scope.pagingBox.before[2] is 3)
             scope.pagingBox.before.splice(1, 1, 2) #remove '..' if not needed anymore, and add "2" instead
-            console.log "remove .., added 2 before" , null  if window.console and console.log
+            # console.log "remove .., added 2 before" , null  if window.console and console.log
 
 
           # fix 98 .. 100
           if scope.pagingBox.after[scope.pagingBox.after.length-2] is '..' and (scope.pagingBox.after[scope.pagingBox.after.length-3] is scope.totalPages - 2)
             scope.pagingBox.after.splice(scope.pagingBox.after.length-2, 1, scope.totalPages - 1) #remove '..' if not needed anymore, and add "2" instead
-            console.log "remove .., added totalpage -1 before" , null  if window.console and console.log
+            # console.log "remove .., added totalpage -1 before" , null  if window.console and console.log
 
           #recombine
 
           concattedPageArray=scope.pagingBox.before.concat(scope.pagingBox.current, scope.pagingBox.after)
           angular.forEach concattedPageArray, (value, key) ->
-            console.log "concatme" , null  if window.console and console.log
-
+            # console.log "concatme" , null  if window.console and console.log
             scope.pages.push {nr:value}
           return
 
         pageChange = (newPage, last_page) ->
           return  unless last_page?
-          console.log "pageChange" , newPage, last_page  if window.console and console.log
-
+          # console.log "pageChange" , newPage, last_page  if window.console and console.log
           scope.reloadItems {page:newPage}
 
         scope.$watch "allItems", paginate

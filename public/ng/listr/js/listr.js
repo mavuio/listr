@@ -9,6 +9,12 @@ angular.module("listr").controller('ListrController', [
   }
 ]);
 
+angular.module("listr").config([
+  '$locationProvider', function($locationProvider) {
+    return $locationProvider.html5Mode(false);
+  }
+]);
+
 /*
 //@ sourceMappingURL=listr.map
 */
