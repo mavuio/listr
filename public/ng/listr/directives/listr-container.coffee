@@ -21,6 +21,7 @@ angular.module("listr").directive "listrContainer", ->
     $scope.listStatus='empty'
     $scope.itemsPagination = {}
     listrApiUrl=$scope.src
+    $scope.listrArguments=$scope.$eval $attrs.listrArguments
 
     $scope.prefix='listr' unless $scope.prefix
 
@@ -55,7 +56,7 @@ angular.module("listr").directive "listrContainer", ->
 
       $http.post(listrApiUrl ,
           action : 'getItems'
-          prefix : $scope.prefix
+          listrArguments : $scope.listrArguments
           query  : $scope.query
           page   : page
       ).then (response) ->

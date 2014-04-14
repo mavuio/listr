@@ -39,25 +39,37 @@ class ListrControllerExtension
 
     public function getApiUrl()
     {
-      return \URL::current().'/listr';
+       if ($this->parentControllerHasMethod('ApiUrl')){
+        $url=$this->callMethodOnParentController('ApiUrl');
+       } else {
+         $url= \URL::current().'/listr';
+       }
+       return $url;
     }
 
-    public function topHtml()
+    public function topHtml($listrArguments=NULL)
     {
+      $this->listrArguments=$listrArguments;
       $url=$this->getApiUrl();
+      $listrArgumentsJson=json_encode($listrArguments);
       return <<<HTML
 <div class='well' id="werkzeugh-listr" ng-controller="ListrController" >
-  <div listr-container src="$url" query="query">
+  <div listr-container src="$url" query="query"
+  listr-arguments='{$listrArgumentsJson}'>
 HTML;
     }
 
-    public function middleHtml()
+    public function middleHtml($listrArguments=NULL)
     {
+      $this->listrArguments=$listrArguments;
+
       return $this->getTableHtml();
     }
 
-    public function bottomHtml()
+    public function bottomHtml($listrArguments=NULL)
     {
+      $this->listrArguments=$listrArguments;
+
       return <<<HTML
   </div>
 </div>
@@ -67,19 +79,12 @@ HTML;
 HTML;
     }
 
-    public function html()
+    public function html($listrArguments=NULL)
     {
 
-      return $this->topHtml()
-      .$this->middleHtml()
-      .$this->bottomHtml();
-
-
-      return <<<HTML
-
-
-
-HTML;
+      return $this->topHtml($listrArguments)
+      .$this->middleHtml($listrArguments)
+      .$this->bottomHtml($listrArguments);
 
     }
 
@@ -87,7 +92,7 @@ HTML;
     public function getTableHtml()
     {
 
-      foreach ($this->getDisplayColumns() as $columnName) {
+      foreach ($this->getDisplayColumns("") as $columnName) {
         $columnHtml=$this->getHtmlForColumn($columnName);
         $tdHtml.="\n      <td>$columnHtml</td>";
         $columnHtml=$this->getHtmlForHeaderColumn($columnName);
@@ -276,6 +281,7 @@ HTML;
     {
 
       \Paginator::setCurrentPage(Input::get('page'));
+      $this->listrArguments=Input::get('listrArguments');
       $ret['items']=$this->getItemList(Input::get('query'));
 
       $ret['status']='ok';
@@ -290,8 +296,8 @@ HTML;
         return $config;
       }
 
-      if ($this->parentControllerHasMethod('config')){
-          $config=$this->callMethodOnParentController('config');
+      if ($this->parentControllerHasMethod('Config')){
+          $config=$this->callMethodOnParentController('Config');
 
       return $config;
     }
@@ -300,8 +306,8 @@ HTML;
 
     public function getItemList($filtersViaRequest)
     {
-      if ($this->parentControllerHasMethod('query')){
-        $query=$this->callMethodOnParentController('query');
+      if ($this->parentControllerHasMethod('Query')){
+        $query=$this->callMethodOnParentController('Query');
 
         return $this->getItemsForQuery($query, $filtersViaRequest);
       }
@@ -447,13 +453,21 @@ HTML;
       $conf=$this->getConfig();
       $record=[];
 
+      $realColumns=$this->getDisplayColumns();
+
       foreach ($this->getAdditonalDataColumns() as $columnName) {
+
             if (is_callable($conf['additionalDataColumns'][$columnName])) {
               $record[$columnName]=$conf['additionalDataColumns'][$columnName]($item);
+            } elseif (is_array($conf['additionalDataColumns'][$columnName])) {
+              if (is_array($conf['additionalDataColumns'][$columnName]['fields'])) {
+                // if($_GET[d] || 1 ) { $x=$conf['additionalDataColumns'][$columnName]['fields']; $x=htmlspecialchars(print_r($x,1));echo "\n<li>mwuits: <pre>$x</pre>"; }
+                $realColumns=array_merge($realColumns,$conf['additionalDataColumns'][$columnName]['fields']);
+              }
             }
       }
 
-      foreach ($this->getDisplayColumns() as $columnName) {
+      foreach ($realColumns as $columnName) {
 
             if (!isset($record[$columnName])) {
               $record[$columnName]=$item->getAttribute($columnName);
@@ -479,7 +493,7 @@ HTML;
 
     public function parentControllerHasMethod($methodName)
     {
-        $methodName=$this->prefix.ucfirst($methodName);
+        $methodName=$this->prefix.$methodName;
         return (method_exists($this->parentController, $methodName)
             && is_callable(array($this->parentController, $methodName)));
     }
@@ -487,7 +501,7 @@ HTML;
 
     public function callMethodOnParentController($methodName)
     {
-        $methodName=$this->prefix.ucfirst($methodName);
+        $methodName=$this->prefix.$methodName;
         return $this->parentController->$methodName();
     }
 

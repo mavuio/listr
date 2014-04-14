@@ -25,6 +25,7 @@ angular.module("listr").directive("listrContainer", function() {
         $scope.listStatus = 'empty';
         $scope.itemsPagination = {};
         listrApiUrl = $scope.src;
+        $scope.listrArguments = $scope.$eval($attrs.listrArguments);
         if (!$scope.prefix) {
           $scope.prefix = 'listr';
         }
@@ -76,7 +77,7 @@ angular.module("listr").directive("listrContainer", function() {
           }
           return $http.post(listrApiUrl, {
             action: 'getItems',
-            prefix: $scope.prefix,
+            listrArguments: $scope.listrArguments,
             query: $scope.query,
             page: page
           }).then(function(response) {
