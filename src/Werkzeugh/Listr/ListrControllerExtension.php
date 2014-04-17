@@ -161,16 +161,56 @@ HTML;
       return $settings;
     }
 
-    public function getAdditonalDataColumns()
+    public function getAdditionalDataColumns()
     {
-      $conf=$this->getConfig();
-      if ($conf['additionalDataColumns'])
+      static $ret;
+
+      if (!isset($ret))
       {
-        return array_keys($conf['additionalDataColumns']);
+          $conf=$this->getConfig();
+          $ret=[];
+          if ($conf['additionalDataColumns'])
+          {
+            $ret=array_keys($conf['additionalDataColumns']);
+          }
       }
-      return [];
+
+      return $ret;
 
     }
+
+    public function getAdditionalDataColumnsFromColumnTemplates()
+    {
+      $conf=$this->getConfig();
+      $ret=[];
+      if (is_array($conf['columnTemplates'])) {
+        foreach ($conf['columnTemplates'] as $fieldName => $template) {
+          if(in_array($fieldName,$conf['displayColumns'])) {
+            $fields=$this->getFieldNamesFromTemplate($template);
+            if ($fields) {
+              $ret[$fieldName]['fields']=$fields;
+            }
+          }        }
+        }
+      return $ret;
+
+    }
+
+    public function getFieldNamesFromTemplate($template)
+    {
+
+      $ret=[];
+      preg_match_all('#rec\.([a-z0-9_]+)#mis',$template,$matches);
+
+      foreach (array_unique($matches[1]) as $str) {
+        array_push($ret,$str);
+      }
+
+      // if($_GET[d] || 1 ) { $x=$ret; $x=htmlspecialchars(print_r($x,1));echo "\n<li>getFieldNamesFromTemplate($template): <pre>$x</pre>"; }
+
+      return $ret;
+    }
+
 
     public function getColumnType($columnName)
     {
@@ -292,16 +332,27 @@ HTML;
     {
       static $config;
 
-      if ($config) {
-        return $config;
+      if (!isset($config)) {
+
+        if ($this->parentControllerHasMethod('Config')){
+          $config=$this->callMethodOnParentController('Config');
+        }
+
+        $additionalDataColumns=$this->getAdditionalDataColumnsFromColumnTemplates();
+        if ($additionalDataColumns) {
+          foreach ($additionalDataColumns as $fieldName => $value) {
+            if (!isset($config['additionalDataColumns'][$fieldName])) {
+              $config['additionalDataColumns'][$fieldName]= $value;
+            }
+          }
+          // if($_GET[d] || 1 ) { $x=$config; $x=htmlspecialchars(print_r($x,1));echo "\n<li>ret: <pre>$x</pre>"; }
+        }
+
       }
 
-      if ($this->parentControllerHasMethod('Config')){
-          $config=$this->callMethodOnParentController('Config');
 
       return $config;
     }
-  }
 /*==========  data handlers  ==========*/
 
     public function getItemList($filtersViaRequest)
@@ -455,7 +506,7 @@ HTML;
 
       $realColumns=$this->getDisplayColumns();
 
-      foreach ($this->getAdditonalDataColumns() as $columnName) {
+      foreach ($this->getAdditionalDataColumns() as $columnName) {
 
             if (is_callable($conf['additionalDataColumns'][$columnName])) {
               $record[$columnName]=$conf['additionalDataColumns'][$columnName]($item);
