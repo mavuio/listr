@@ -18,9 +18,7 @@ class ListrServiceProvider extends ServiceProvider {
 	 */
 	public function register()
 	{
-	 // $this->app->bind('Werkzeugh\Listr\ListrControllerExtension', function() {
-  //           return new \Werkzeugh\Listr\ListrControllerExtension();
-  //       });
+
     }
 
 	/**
