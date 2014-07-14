@@ -13,4 +13,24 @@
  -webkit-user-select: none;
  
  }
+
+ .listr-table th[class*="col-"] {
+   position:relative;
+   border-bottom:2px solid black;
+   background:white !important;
+   border-top:1px solid white !important;
+   border-left:1px solid white !important;
+   border-right:1px solid white !important;
+   vertical-align:bottom;
+   
+ }
+ 
+    
+ .listr-table th a {
+   color:black;
+ }
+ 
+ .listr-table th i.sorticon {
+   color:#dd0000;
+ }
  

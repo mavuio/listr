@@ -20,6 +20,9 @@ angular.module("listr").directive("listrContainer", function() {
         if (!$scope.query) {
           $scope.query = {};
         }
+        if (!$scope.sortBy) {
+          $scope.sortBy = {};
+        }
         $scope.items = [];
         $scope.listStatus = 'empty';
         $scope.itemsPagination = {};
@@ -31,8 +34,25 @@ angular.module("listr").directive("listrContainer", function() {
         $scope.switchPage = function(page) {
           return $scope.listrSubmitQuery(page);
         };
+        $scope.toggleSort = function(fieldname) {
+          var curval, newval;
+          curval = $scope.sortBy[fieldname];
+          if (curval === 'asc') {
+            newval = 'desc';
+          } else {
+            newval = 'asc';
+          }
+          $scope.sortBy = {};
+          $scope.sortBy[fieldname] = newval;
+          return $scope.listrSubmitQuery();
+        };
+        $scope.getSortStatus = function(fieldname) {
+          if ($scope.sortBy) {
+            return $scope.sortBy[fieldname];
+          }
+        };
         $scope.listrSubmitQuery = function(page) {
-          var newstate;
+          var newstate, queryStrParts;
           if (page == null) {
             page = 0;
           }
@@ -48,6 +68,11 @@ angular.module("listr").directive("listrContainer", function() {
           if (page > 0) {
             $scope.query.page = page;
           }
+          queryStrParts = [];
+          angular.forEach($scope.sortBy, function(direction, fieldname) {
+            return queryStrParts.push("" + fieldname + ":" + direction);
+          });
+          $scope.query.sortby = queryStrParts.join(',');
           newstate = {
             query: $scope.query
           };
@@ -94,6 +119,16 @@ angular.module("listr").directive("listrContainer", function() {
             console.log("❖ listr-container: state-change detected", null);
           }
           $scope.query = angular.copy(query);
+          $scope.sortBy = {};
+          if ($scope.query.sortby) {
+            angular.forEach($scope.query.sortby.split(' '), function(sortpart, num) {
+              var sortpartSplitted;
+              sortpartSplitted = sortpart.split(":");
+              if (sortpartSplitted.length === 2) {
+                return $scope.sortBy[sortpartSplitted[0]] = sortpartSplitted[1];
+              }
+            });
+          }
           return $scope.refreshListing();
         }), true);
       }

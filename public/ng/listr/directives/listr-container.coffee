@@ -18,6 +18,10 @@ angular.module("listr").directive "listrContainer", ->
     if !$scope.query
       $scope.query = {}
 
+    if !$scope.sortBy
+      $scope.sortBy = {}
+    
+
     $scope.items = []
     $scope.listStatus='empty'
     $scope.itemsPagination = {}
@@ -29,6 +33,25 @@ angular.module("listr").directive "listrContainer", ->
     $scope.switchPage = (page) ->
       $scope.listrSubmitQuery(page)
 
+    $scope.toggleSort= (fieldname) ->
+   
+        
+      curval=$scope.sortBy[fieldname]
+      if curval=='asc' 
+        newval='desc'
+      else
+        newval='asc'
+      $scope.sortBy={}
+      $scope.sortBy[fieldname]=newval
+      $scope.listrSubmitQuery()
+         
+    
+    $scope.getSortStatus= (fieldname) ->
+      if $scope.sortBy
+        $scope.sortBy[fieldname]
+        
+       
+
     $scope.listrSubmitQuery = (page=0) ->
       if $scope.listStatus is 'loading'
         console.log "list is already loading, please wait" , null  if window.console and console.log
@@ -38,6 +61,13 @@ angular.module("listr").directive "listrContainer", ->
 
       if page > 0
         $scope.query.page=page
+
+      #compact sortBy
+      queryStrParts=[]
+      angular.forEach $scope.sortBy,(direction, fieldname)->
+        queryStrParts.push "#{fieldname}:#{direction}"
+      
+      $scope.query.sortby=queryStrParts.join(',')
 
       newstate=query: $scope.query
       # newstate.hash={} if $scope.app.currentExpandedItem
@@ -74,6 +104,15 @@ angular.module("listr").directive "listrContainer", ->
     ), ((query) ->
       console.log "❖ listr-container: state-change detected" , null  if window.console and console.log
       $scope.query = angular.copy(query)
+      
+      $scope.sortBy={}
+      if $scope.query.sortby
+        angular.forEach $scope.query.sortby.split(' '),(sortpart, num)->
+          sortpartSplitted=sortpart.split(":")
+          if sortpartSplitted.length is 2
+            $scope.sortBy[sortpartSplitted[0]]=sortpartSplitted[1]
+        
+      
       $scope.refreshListing()
     ), true
 

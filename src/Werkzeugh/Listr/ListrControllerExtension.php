@@ -120,7 +120,7 @@ HTML;
 
 <table class="listr-table table table-striped table-bordered table-condensed">
   <tbody>
-    <tr>'.$thHtml.'
+    <tr valign="bottom">'.$thHtml.'
     </tr>
   </tbody>
   <tbody>
@@ -312,11 +312,28 @@ HTML;
       if ($tpl=$this->getCustomTemplateForHeaderColumn($columnName)) {
         return $tpl;
       }
-
+      
+      $fieldname=$columnName;
       if ($label=$this->getDisplayColumnSetting($columnName, 'label')) {
-        return $label;
+        $fieldname=$label;
       }
-      return $columnName;
+      
+      $sortColumnName=$this->getDisplayColumnSetting($columnName, 'sortfield');
+      if(!$sortColumnName)
+          $sortColumnName="$columnName";
+      
+      $header=$fieldname;
+      
+      if(!preg_match('#^_(.*)$#',$sortColumnName)) {
+          $header="<a href=\"javascript:void(0)\" 
+                      ng-click=\"toggleSort('$sortColumnName')\">
+          <i ng-show=\"getSortStatus('$sortColumnName')\" class=\"sorticon fa\" ng-class=\"{asc:'fa-arrow-down',desc:'fa-arrow-up'}[getSortStatus('$sortColumnName')]\"></i>
+          $header
+          </a>";
+      }
+      
+      
+      return $header;
     }
 
     public function dispatch()
@@ -432,7 +449,7 @@ HTML;
       foreach (explode(',', $sortString) as $fieldName) {
 
         $direction='asc';
-        if (preg_match('#^(.+)-(desc|asc)$#', $fieldName, $matches)) {
+        if (preg_match('#^(.+)[-:](desc|asc)$#', $fieldName, $matches)) {
           $fieldName=$matches[1];
           $direction=$matches[2];
         }
@@ -450,8 +467,9 @@ HTML;
     {
 
       foreach ($filtersViaRequest as $field=>$value) {
-
-        $this->applySingleFilter($field,$value,$query);
+          if($field!='sortby'){
+              $this->applySingleFilter($field,$value,$query);
+          }
       }
 
     }
@@ -509,6 +527,8 @@ HTML;
       $items=[];
       $paginatedItems=$this->executeQuery($query, $filtersViaRequest);
       // if($_GET[d] || 1 ) { $x=$paginatedItems; $x=htmlspecialchars(print_r($x,1));echo "\n<li>mwuits: <pre>$x</pre>"; }
+      
+      
       foreach ( $paginatedItems as $item) {
         array_push($items,$this->getListRecord($item));
       }
