@@ -53,7 +53,7 @@ class ListrControllerExtension
       $url=$this->getApiUrl();
       $listrArgumentsJson=json_encode($listrArguments);
       return <<<HTML
-<div class='well' id="werkzeugh-listr" ng-controller="ListrController" >
+<div id="werkzeugh-listr" ng-controller="ListrController" >
   <div listr-container src="$url" query="query" app="app"
   listr-arguments='{$listrArgumentsJson}'>
 HTML;
