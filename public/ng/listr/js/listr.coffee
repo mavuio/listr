@@ -6,7 +6,7 @@ listrapp = angular.module "listr", ['werkzeugh-statemanager']
 angular.module("listr").controller 'ListrController', ['$scope', '$location', '$http', '$filter', '$sce', '$timeout',
 ($scope, $location, $http, $filter, $sce, $timeout) ->
   $scope.app = {}
-
+  #to be overriden in controller-template
 ]
 
 angular.module("listr").config [ '$locationProvider', ($locationProvider) ->
@@ -15,3 +15,11 @@ angular.module("listr").config [ '$locationProvider', ($locationProvider) ->
 
           $locationProvider.html5Mode false
     ]
+
+
+angular.module("listr").filter "htmlToPlaintext", ->
+  (text) ->
+    if text
+      return String(text).replace /<[^>]+>/g, ""
+
+    return ""

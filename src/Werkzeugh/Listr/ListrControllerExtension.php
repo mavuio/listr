@@ -54,7 +54,7 @@ class ListrControllerExtension
       $listrArgumentsJson=json_encode($listrArguments);
       return <<<HTML
 <div class='well' id="werkzeugh-listr" ng-controller="ListrController" >
-  <div listr-container src="$url" query="query"
+  <div listr-container src="$url" query="query" app="app"
   listr-arguments='{$listrArgumentsJson}'>
 HTML;
     }
@@ -74,10 +74,24 @@ HTML;
   </div>
 </div>
 <script>
+
+angular.module("listr").controller('ListrController', [
+  '\$scope', '\$location', '\$http', '\$filter', '\$sce', '\$timeout', function(\$scope, \$location, \$http, \$filter, \$sce, \$timeout) {
+    \$scope.app = {};
+    
+    {$this->getCustomControllerJavascript()}
+
+  }
+]);
+
+
  angular.bootstrap(document.getElementById('werkzeugh-listr'), ['listr']);
 </script>
 HTML;
     }
+    
+    
+
 
     public function html($listrArguments=NULL)
     {
@@ -94,9 +108,9 @@ HTML;
 
       foreach ($this->getDisplayColumns("") as $columnName) {
         $columnHtml=$this->getHtmlForColumn($columnName);
-        $tdHtml.="\n      <td>$columnHtml</td>";
+        $tdHtml.="\n      <td class=\"col-$columnName\">$columnHtml</td>";
         $columnHtml=$this->getHtmlForHeaderColumn($columnName);
-        $thHtml.="\n      <th>$columnHtml</th>";
+        $thHtml.="\n      <th class=\"col-$columnName\">$columnHtml</th>";
       }
 
       $columnCount=substr_count($thHtml , '<th' );
@@ -363,6 +377,18 @@ HTML;
         return $this->getItemsForQuery($query, $filtersViaRequest);
       }
     }
+
+    public function getCustomControllerJavascript()
+    {
+        
+      if ($this->parentControllerHasMethod('Javascript')){
+        $js=$this->callMethodOnParentController('Javascript');
+        return $js;
+      }
+      return "<!-- no custom javascript for listr-->";
+    }
+
+
 
     public function getPageSize()
     {

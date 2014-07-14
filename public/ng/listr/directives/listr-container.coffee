@@ -7,6 +7,7 @@ angular.module("listr").directive "listrContainer", ->
     src: '@'
     prefix: '@'
     query: '='
+    app: '='
 
   link: (scope, element, attrs, ctrl, transclude) ->
     transclude scope, (clone, scope) ->
