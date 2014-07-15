@@ -14,6 +14,9 @@
  
  }
 
+ .listr-table  {
+   border:0;
+ }
  .listr-table th[class*="col-"] {
    position:relative;
    border-bottom:2px solid black;
@@ -24,7 +27,14 @@
    vertical-align:bottom;
    
  }
- 
+
+ .listr-table td {
+   border-top:none !important;
+   border-bottom:none !important;
+   border-left:1px dotted #ccc;
+   border-right:1px dotted #ccc;
+ }
+  
     
  .listr-table th a {
    color:black;

@@ -53,8 +53,10 @@ class ListrControllerExtension
       $url=$this->getApiUrl();
       $listrArgumentsJson=json_encode($listrArguments);
       return <<<HTML
-<div id="werkzeugh-listr" ng-controller="ListrController" >
-  <div listr-container src="$url" query="query" app="app"
+
+<div ng-non-bindable data-\$injector="">
+  <div id="werkzeugh-listr" ng-controller="ListrController" >
+    <div listr-container src="$url" query="query" app="app"
   listr-arguments='{$listrArgumentsJson}'>
 HTML;
     }
@@ -71,6 +73,7 @@ HTML;
       $this->listrArguments=$listrArguments;
 
       return <<<HTML
+    </div>
   </div>
 </div>
 <script>
@@ -84,8 +87,13 @@ angular.module("listr").controller('ListrController', [
   }
 ]);
 
+jQuery(document).ready(function($) {
 
- angular.bootstrap(document.getElementById('werkzeugh-listr'), ['listr']);
+    angular.bootstrap(document.getElementById('werkzeugh-listr'), ['listr']);
+          
+ });
+
+
 </script>
 HTML;
     }

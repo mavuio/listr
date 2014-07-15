@@ -186,9 +186,6 @@ angular.module("listr").directive("paginate", function() {
       };
       addAfter = function() {
         var maxPage, newval;
-        if (window.console && console.log) {
-          console.log("aft", null);
-        }
         if (scope.pagingBox.after.length > 1 && scope.pagingBox.after[scope.pagingBox.after.length - 2] === '..') {
           if (scope.pagingBox.after.length > 2) {
             maxPage = scope.pagingBox.after[scope.pagingBox.after.length - 3];

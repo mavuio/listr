@@ -174,7 +174,6 @@ angular.module("listr").directive "paginate", ->
 
 
         addAfter = ->
-          console.log "aft" , null  if window.console and console.log
 
           if scope.pagingBox.after.length>1 and scope.pagingBox.after[scope.pagingBox.after.length-2] is '..'
             # '..' is present:
