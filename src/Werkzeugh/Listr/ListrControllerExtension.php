@@ -115,6 +115,8 @@ HTML;
     {
 
       foreach ($this->getDisplayColumns("") as $columnName) {
+        $rowTagAttributes=$this->getTagAttributesForRow();
+
         $columnHtml=$this->getHtmlForColumn($columnName);
         $tdHtml.="\n      <td class=\"col-$columnName\">$columnHtml</td>";
         $columnHtml=$this->getHtmlForHeaderColumn($columnName);
@@ -143,7 +145,7 @@ HTML;
     </td>
     </tr>
 
-    <tr listr-item ng-repeat="rec in items" ng-if="listStatus==\'loaded\'">'.$tdHtml.'
+    <tr listr-item ng-repeat="rec in items" ng-if="listStatus==\'loaded\'" '.$rowTagAttributes.'>'.$tdHtml.'
     </tr>
 
   </tbody>
@@ -265,6 +267,16 @@ HTML;
 
     }
 
+    public function getCustomTagAttributesForRow()
+    {
+        
+      $conf=$this->getConfig();
+      if ($html=$conf['customTagAttributesForRow']) {
+        return $html;
+      }
+      return null;
+    }
+
     public function getCustomTemplateForColumn($columnName)
     {
       $conf=$this->getConfig();
@@ -313,6 +325,13 @@ HTML;
       }
 
       return '{{rec.'.$columnName.'}}';
+    }
+
+    public function getTagAttributesForRow()
+    {
+        if ($tpl=$this->getCustomTagAttributesForRow()) {
+          return $tpl;
+        }
     }
 
     public function getHtmlForHeaderColumn($columnName)
