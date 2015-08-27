@@ -20,9 +20,11 @@ angular.module("listr").directive "listrContainer", ->
 
     if !$scope.sortBy
       $scope.sortBy = {}
-    
 
     $scope.items = []
+    $scope.app.currentRecord=null
+    $scope.app.editForm=
+      loading:false
     $scope.listStatus='empty'
     $scope.itemsPagination = {}
     listrApiUrl=$scope.src
@@ -34,8 +36,6 @@ angular.module("listr").directive "listrContainer", ->
       $scope.listrSubmitQuery(page)
 
     $scope.toggleSort= (fieldname) ->
-   
-        
       curval=$scope.sortBy[fieldname]
       if curval=='asc' 
         newval='desc'
@@ -44,13 +44,86 @@ angular.module("listr").directive "listrContainer", ->
       $scope.sortBy={}
       $scope.sortBy[fieldname]=newval
       $scope.listrSubmitQuery()
-         
-    
+
+    $scope.editRecord=(record) ->
+      record.__selected=true
+      record.__loading=true
+      $scope.app.currentDisplayRecord=record
+      $http.post(listrApiUrl ,
+         action : 'getItem'
+         id  : record.id
+      ).then (response) ->
+        record.__loading=false
+        if response.data.status is 'ok'
+          $scope.app.record=response.data.record
+          $scope.app.modalTitle="edit"
+          $scope.app.modalIcon="fa-pencil"
+          args=
+            action:"editItem"
+            controller:listrApiUrl+"?action=getNgEditController"
+            template:listrApiUrl+"?action=getNgEditTemplate"
+          $scope.app.showModal(args).then ->
+            record.__selected=false
+            $scope.app.currentDisplayRecord=null
+
+    $scope.deleteRecord=(record) ->
+      record.__selected=true
+      if confirm('do you really want to delete this record ?')
+        record.__loading=true
+        $http.post(listrApiUrl ,
+          action : 'deleteItem'
+          record  : record
+        ).then (response) ->
+          record.__loading=false
+          if response.data.status is 'ok'
+            record.__deleted=true
+            idx2delete=$scope.items.indexOf(record)
+            unless idx2delete is -1
+              $scope.items.splice idx2delete, 1
+      record.__selected=false
+
     $scope.getSortStatus= (fieldname) ->
       if $scope.sortBy
         $scope.sortBy[fieldname]
-        
-       
+
+    $scope.listrAddItem= ->
+      $scope.app.modalTitle="add"
+      $scope.app.modalIcon="fa-plus"
+      args=
+        action:"addItem"
+        controller:listrApiUrl+"?action=getNgEditController"
+        template:listrApiUrl+"?action=getNgEditTemplate"
+      $scope.getDefaultRecord().then (result)->
+        console.log "getDefaultRecord" , result  if window.console and console.log
+        $scope.app.record=result
+        $scope.app.showModal(args)
+
+    $scope.app.submitEditForm=(closeFunction)->
+      $scope.app.editForm.Loading=true
+
+      $http.post(listrApiUrl ,
+          action : 'saveItem'
+          data   : $scope.app.record
+      ).then (response) ->
+        $scope.app.editFormLoading=true
+        if response.data.status is 'ok'
+          $scope.refreshListing()
+          closeFunction('closed manually')
+        else
+          $scope.app.editForm.msg=response.data.msg
+
+    $scope.getDefaultRecord= ->
+      defered=$q.defer()
+
+      $http.post(listrApiUrl ,
+         action : 'getDefaultRecord'
+      ).then (response) ->
+        if response.data.status is 'ok'
+          defered.resolve(response.data.payload)
+        else
+          defered.reject()
+
+      return defered.promise
 
     $scope.listrSubmitQuery = (page=0) ->
       if $scope.listStatus is 'loading'
@@ -66,14 +139,14 @@ angular.module("listr").directive "listrContainer", ->
       queryStrParts=[]
       angular.forEach $scope.sortBy,(direction, fieldname)->
         queryStrParts.push "#{fieldname}:#{direction}"
-      
+
       $scope.query.sortby=queryStrParts.join(',')
 
       newstate=query: $scope.query
       # newstate.hash={} if $scope.app.currentExpandedItem
       statemanager.setState newstate
 
-    $scope.refreshListing = () ->
+    $scope.refreshListing = ->
       if $scope.listStatus is 'loading'
         console.log "list is already loading, please wait" , null  if window.console and console.log
         return
@@ -104,21 +177,18 @@ angular.module("listr").directive "listrContainer", ->
     ), ((query) ->
       console.log "❖ listr-container: state-change detected" , null  if window.console and console.log
       $scope.query = angular.copy(query)
-      
+
       $scope.sortBy={}
       if $scope.query.sortby
         angular.forEach $scope.query.sortby.split(' '),(sortpart, num)->
           sortpartSplitted=sortpart.split(":")
           if sortpartSplitted.length is 2
             $scope.sortBy[sortpartSplitted[0]]=sortpartSplitted[1]
-        
-      
+
       $scope.refreshListing()
     ), true
 
-
     # $scope.refreshListing()
-
 
   ]
 
@@ -171,8 +241,6 @@ angular.module("listr").directive "paginate", ->
             scope.pagingBox.before.splice(1, 1) #remove '..' if not needed anymore
             # console.log "remove .. before" , null  if window.console and console.log
 
-
-
         addAfter = ->
 
           if scope.pagingBox.after.length>1 and scope.pagingBox.after[scope.pagingBox.after.length-2] is '..'
@@ -193,7 +261,6 @@ angular.module("listr").directive "paginate", ->
           if scope.pagingBox.after[scope.pagingBox.after.length-2] is '..' and (scope.pagingBox.after[scope.pagingBox.after.length-3] is scope.totalPages - 1 or scope.pagingBox.current is scope.totalPages - 1)
             # console.log "remove .." , null  if window.console and console.log
             scope.pagingBox.after.splice(scope.pagingBox.after.length-2, 1) #remove '..' if not needed anymore
-
 
         paginate = (results, oldResults) ->
 
@@ -228,12 +295,10 @@ angular.module("listr").directive "paginate", ->
               addAfter()
             break if safeCounter>scope.pagingBox.limit*2
 
-
           # fix 1 .. 3 4 5
           if scope.pagingBox.before[1] is '..' and (scope.pagingBox.before[2] is 3)
             scope.pagingBox.before.splice(1, 1, 2) #remove '..' if not needed anymore, and add "2" instead
             # console.log "remove .., added 2 before" , null  if window.console and console.log
-
 
           # fix 98 .. 100
           if scope.pagingBox.after[scope.pagingBox.after.length-2] is '..' and (scope.pagingBox.after[scope.pagingBox.after.length-3] is scope.totalPages - 2)
@@ -256,8 +321,5 @@ angular.module("listr").directive "paginate", ->
         scope.$watch "allItems", paginate
         scope.$watch "current_page", pageChange
 
-
-
 console.log "drectvie defined" , null  if window.console and console.log
-
 

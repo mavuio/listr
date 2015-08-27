@@ -31,4 +31,10 @@ class ListrServiceProvider extends ServiceProvider {
 		return array();
 	}
 
+	public function boot()
+	{
+		$this->package('werkzeugh/listr');
+
+	}
+
 }
