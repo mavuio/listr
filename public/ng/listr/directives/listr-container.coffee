@@ -21,6 +21,12 @@ angular.module("listr").directive "listrContainer", ->
     if !$scope.sortBy
       $scope.sortBy = {}
     
+    if !$scope.app.callInParentFrame
+      $scope.app.callInParentFrame=(functionName, data)->
+        console.log "called callInParentFrame" , null  if window.console and console.log
+        topWindow=window.parent
+        promise=topWindow.callAngularFunction(functionName,data)
+
 
     $scope.items = []
     $scope.listStatus='empty'

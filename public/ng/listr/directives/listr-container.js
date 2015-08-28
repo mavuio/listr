@@ -23,6 +23,16 @@ angular.module("listr").directive("listrContainer", function() {
         if (!$scope.sortBy) {
           $scope.sortBy = {};
         }
+        if (!$scope.app.callInParentFrame) {
+          $scope.app.callInParentFrame = function(functionName, data) {
+            var promise, topWindow;
+            if (window.console && console.log) {
+              console.log("called callInParentFrame", null);
+            }
+            topWindow = window.parent;
+            return promise = topWindow.callAngularFunction(functionName, data);
+          };
+        }
         $scope.items = [];
         $scope.listStatus = 'empty';
         $scope.itemsPagination = {};
