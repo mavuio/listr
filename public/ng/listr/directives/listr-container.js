@@ -24,6 +24,10 @@ angular.module("listr").directive("listrContainer", function() {
           $scope.sortBy = {};
         }
         $scope.items = [];
+        $scope.app.currentRecord = null;
+        $scope.app.editForm = {
+          loading: false
+        };
         $scope.listStatus = 'empty';
         $scope.itemsPagination = {};
         listrApiUrl = $scope.src;
@@ -46,10 +50,103 @@ angular.module("listr").directive("listrContainer", function() {
           $scope.sortBy[fieldname] = newval;
           return $scope.listrSubmitQuery();
         };
+        $scope.editRecord = function(record) {
+          record.__selected = true;
+          record.__loading = true;
+          $scope.app.currentDisplayRecord = record;
+          return $http.post(listrApiUrl, {
+            action: 'getItem',
+            id: record.id
+          }).then(function(response) {
+            var args;
+            record.__loading = false;
+            if (response.data.status === 'ok') {
+              $scope.app.record = response.data.record;
+              $scope.app.modalTitle = "edit";
+              $scope.app.modalIcon = "fa-pencil";
+              args = {
+                action: "editItem",
+                controller: listrApiUrl + "?action=getNgEditController",
+                template: listrApiUrl + "?action=getNgEditTemplate"
+              };
+              return $scope.app.showModal(args).then(function() {
+                record.__selected = false;
+                return $scope.app.currentDisplayRecord = null;
+              });
+            }
+          });
+        };
+        $scope.deleteRecord = function(record) {
+          record.__selected = true;
+          if (confirm('do you really want to delete this record ?')) {
+            record.__loading = true;
+            $http.post(listrApiUrl, {
+              action: 'deleteItem',
+              record: record
+            }).then(function(response) {
+              var idx2delete;
+              record.__loading = false;
+              if (response.data.status === 'ok') {
+                record.__deleted = true;
+                idx2delete = $scope.items.indexOf(record);
+                if (idx2delete !== -1) {
+                  return $scope.items.splice(idx2delete, 1);
+                }
+              }
+            });
+          }
+          return record.__selected = false;
+        };
         $scope.getSortStatus = function(fieldname) {
           if ($scope.sortBy) {
             return $scope.sortBy[fieldname];
           }
+        };
+        $scope.listrAddItem = function() {
+          var args;
+          $scope.app.modalTitle = "add";
+          $scope.app.modalIcon = "fa-plus";
+          args = {
+            action: "addItem",
+            controller: listrApiUrl + "?action=getNgEditController",
+            template: listrApiUrl + "?action=getNgEditTemplate"
+          };
+          return $scope.getDefaultRecord().then(function(result) {
+            if (window.console && console.log) {
+              console.log("getDefaultRecord", result);
+            }
+            $scope.app.record = result;
+            return $scope.app.showModal(args);
+          });
+        };
+        $scope.app.submitEditForm = function(closeFunction) {
+          $scope.app.editForm.Loading = true;
+          return $http.post(listrApiUrl, {
+            action: 'saveItem',
+            data: $scope.app.record
+          }).then(function(response) {
+            $scope.app.editFormLoading = true;
+            if (response.data.status === 'ok') {
+              $scope.refreshListing();
+              return closeFunction('closed manually');
+            } else {
+              return $scope.app.editForm.msg = response.data.msg;
+            }
+          });
+        };
+        $scope.getDefaultRecord = function() {
+          var defered;
+          defered = $q.defer();
+          $http.post(listrApiUrl, {
+            action: 'getDefaultRecord'
+          }).then(function(response) {
+            if (response.data.status === 'ok') {
+              return defered.resolve(response.data.payload);
+            } else {
+              return defered.reject();
+            }
+          });
+          return defered.promise;
         };
         $scope.listrSubmitQuery = function(page) {
           var newstate, queryStrParts;
